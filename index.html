@@ -133,13 +133,13 @@
     }
     #chart-canvas { display: block; width: 100%; height: 100%; }
 
-    #footer {
-      padding: 12px 16px 28px;
+    #cam-strip {
       display: flex;
       align-items: center;
+      padding: 8px 16px;
       gap: 14px;
       flex-shrink: 0;
-      border-top: 1px solid rgba(255,255,255,0.05);
+      border-bottom: 1px solid rgba(255,255,255,0.05);
     }
     #cam-wrap {
       position: relative;
@@ -238,10 +238,30 @@
       margin-top: 3px;
     }
     #pos-realized {
-      font-size: 7px;
+      font-size: 9px;
       letter-spacing: 2px;
-      color: rgba(255,255,255,0.18);
-      margin-top: 4px;
+      color: rgba(255,255,255,0.35);
+      margin-top: 5px;
+    }
+    #total-bar {
+      display: flex;
+      justify-content: center;
+      align-items: baseline;
+      gap: 8px;
+      padding: 6px 16px 10px;
+      border-top: 1px solid rgba(255,255,255,0.04);
+      flex-shrink: 0;
+    }
+    #total-label {
+      font-size: 7px;
+      letter-spacing: 3px;
+      color: rgba(255,255,255,0.2);
+    }
+    #total-pnl {
+      font-size: 13px;
+      font-weight: 200;
+      letter-spacing: 1px;
+      font-variant-numeric: tabular-nums;
     }
 
     /* ── Pending indicator ── */
@@ -277,8 +297,20 @@
       <div id="app-name">MIRRORED MARKET</div>
     </div>
     <div id="price-block">
-      <div id="price-value">1000.00</div>
+      <div id="price-value">100.00</div>
       <div id="price-change" class="pos">+0.00 (+0.00%)</div>
+    </div>
+  </div>
+
+  <div id="cam-strip">
+    <div id="cam-wrap">
+      <video id="video" autoplay muted playsinline></video>
+      <canvas id="face-canvas"></canvas>
+    </div>
+    <div id="expr-info">
+      <div id="expr-label">EXPRESSION DETECTED</div>
+      <div id="expr-name">—</div>
+      <div id="effect-line">INITIALIZING</div>
     </div>
   </div>
 
@@ -295,17 +327,9 @@
     </div>
     <button id="btn-sell" class="trade-btn" onclick="onSell()">SELL</button>
   </div>
-
-  <div id="footer">
-    <div id="cam-wrap">
-      <video id="video" autoplay muted playsinline></video>
-      <canvas id="face-canvas"></canvas>
-    </div>
-    <div id="expr-info">
-      <div id="expr-label">EXPRESSION DETECTED</div>
-      <div id="expr-name">—</div>
-      <div id="effect-line">INITIALIZING</div>
-    </div>
+  <div id="total-bar">
+    <span id="total-label">TOTAL P&amp;L</span>
+    <span id="total-pnl" class="pos">+0.00</span>
   </div>
 </div>
 
@@ -327,14 +351,14 @@ const MAX_VOL    = 9.0;
 //  MARKET STATE
 // ══════════════════════════════════════════
 const mkt = {
-  price:       1000.00,
-  openPrice:   1000.00,
+  price:       100.00,
+  openPrice:   100.00,
   volatility:  0.4,
   trend:       0,
   candles:     [],
-  cOpen:  1000.00,
-  cHigh:  1000.00,
-  cLow:   1000.00,
+  cOpen:  100.00,
+  cHigh:  100.00,
+  cLow:   100.00,
   pending:     [],       // [{time, fn}]
   lastExpr:    null,
   cooldownEnd: 0,
@@ -634,8 +658,22 @@ function updateTradeUI() {
   const pnlEl  = document.getElementById('pos-pnl');
   const realEl = document.getElementById('pos-realized');
 
+  const unreal = trade.side === 'long'
+    ? (mkt.price - trade.entryPrice) * trade.size
+    : trade.side === 'short'
+      ? (trade.entryPrice - mkt.price) * trade.size
+      : 0;
+  const total = trade.realizedPnl + unreal;
+
+  // Realized line
   const rs = trade.realizedPnl >= 0 ? '+' : '';
   realEl.textContent = `REALIZED  ${rs}${trade.realizedPnl.toFixed(2)}`;
+
+  // Total P&L bar
+  const totalEl = document.getElementById('total-pnl');
+  const ts = total >= 0 ? '+' : '';
+  totalEl.textContent = `${ts}${total.toFixed(2)}`;
+  totalEl.className   = total >= 0 ? 'pos' : 'neg';
 
   if (trade.side === null) {
     posEl.textContent = 'NO POSITION';
@@ -644,9 +682,6 @@ function updateTradeUI() {
     buyBtn.classList.remove('dim');
     sellBtn.classList.remove('dim');
   } else {
-    const unreal = trade.side === 'long'
-      ? (mkt.price - trade.entryPrice) * trade.size
-      : (trade.entryPrice - mkt.price) * trade.size;
     const s = unreal >= 0 ? '+' : '';
     posEl.textContent = `${trade.side.toUpperCase()}  @${trade.entryPrice.toFixed(2)}`;
     pnlEl.textContent = `${s}${unreal.toFixed(2)}`;
@@ -748,7 +783,7 @@ async function startApp() {
 
     resizeChart();
 
-    mkt.cOpen = mkt.cHigh = mkt.cLow = mkt.price;
+    mkt.cOpen = mkt.cHigh = mkt.cLow = 100.00;
 
     setInterval(tickMarket,  TICK_MS);
     setInterval(closeCandle, CANDLE_MS);
