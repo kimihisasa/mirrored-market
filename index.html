@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>MIRRORED MARKET</title>
+  <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #06060a;
+      color: #e0e0e0;
+      font-family: 'SF Mono', 'Menlo', 'Monaco', 'Courier New', monospace;
+      overflow: hidden;
+      width: 100vw;
+      height: 100dvh;
+    }
+
+    /* ── Start screen ── */
+    #start-screen {
+      position: fixed; inset: 0;
+      background: #06060a;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+    }
+    #start-title {
+      font-size: 13px;
+      letter-spacing: 10px;
+      color: rgba(255,255,255,0.85);
+      margin-bottom: 10px;
+    }
+    #start-sub {
+      font-size: 9px;
+      letter-spacing: 3px;
+      color: rgba(255,255,255,0.2);
+      margin-bottom: 72px;
+    }
+    #start-btn {
+      background: none;
+      border: 1px solid rgba(255,255,255,0.25);
+      color: rgba(255,255,255,0.6);
+      font-family: inherit;
+      font-size: 10px;
+      letter-spacing: 5px;
+      padding: 14px 36px;
+      cursor: pointer;
+      transition: border-color 0.2s, color 0.2s;
+    }
+    #start-btn:active {
+      border-color: rgba(255,255,255,0.6);
+      color: rgba(255,255,255,0.9);
+    }
+
+    /* ── Loading screen ── */
+    #loading-screen {
+      position: fixed; inset: 0;
+      background: #06060a;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+    }
+    #loading-text {
+      font-size: 9px;
+      letter-spacing: 3px;
+      color: rgba(255,255,255,0.3);
+    }
+    #loading-bar-wrap {
+      width: 120px;
+      height: 1px;
+      background: rgba(255,255,255,0.08);
+      margin-top: 20px;
+      overflow: hidden;
+    }
+    #loading-bar {
+      height: 1px;
+      width: 0%;
+      background: rgba(255,255,255,0.4);
+      transition: width 0.4s;
+    }
+
+    /* ── Main app ── */
+    #app {
+      display: none;
+      flex-direction: column;
+      height: 100dvh;
+    }
+
+    #header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding: 18px 16px 10px;
+      flex-shrink: 0;
+    }
+    #ticker-label {
+      font-size: 8px;
+      letter-spacing: 3px;
+      color: rgba(255,255,255,0.25);
+    }
+    #app-name {
+      font-size: 7px;
+      letter-spacing: 4px;
+      color: rgba(255,255,255,0.1);
+      margin-top: 4px;
+    }
+    #price-block { text-align: right; }
+    #price-value {
+      font-size: 24px;
+      font-weight: 200;
+      letter-spacing: 1px;
+      color: rgba(255,255,255,0.9);
+      font-variant-numeric: tabular-nums;
+    }
+    #price-change {
+      font-size: 9px;
+      letter-spacing: 1px;
+      margin-top: 3px;
+      font-variant-numeric: tabular-nums;
+    }
+    .pos { color: #4ade80; }
+    .neg { color: #f87171; }
+
+    #chart-container {
+      flex: 1;
+      position: relative;
+      min-height: 0;
+    }
+    #chart-canvas { display: block; width: 100%; height: 100%; }
+
+    #footer {
+      padding: 12px 16px 28px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-shrink: 0;
+      border-top: 1px solid rgba(255,255,255,0.05);
+    }
+    #cam-wrap {
+      position: relative;
+      width: 64px;
+      height: 48px;
+      flex-shrink: 0;
+    }
+    #video {
+      width: 64px; height: 48px;
+      object-fit: cover;
+      opacity: 0.55;
+      transform: scaleX(-1);
+      display: block;
+    }
+    #face-canvas {
+      position: absolute; inset: 0;
+      width: 64px; height: 48px;
+    }
+
+    #expr-info { flex: 1; min-width: 0; }
+    #expr-label {
+      font-size: 7px;
+      letter-spacing: 3px;
+      color: rgba(255,255,255,0.2);
+      margin-bottom: 5px;
+    }
+    #expr-name {
+      font-size: 11px;
+      letter-spacing: 2px;
+      color: rgba(255,255,255,0.8);
+      transition: color 0.4s;
+    }
+    #effect-line {
+      font-size: 8px;
+      letter-spacing: 1px;
+      color: rgba(255,255,255,0.25);
+      margin-top: 3px;
+    }
+
+    /* ── Event flash ── */
+    #flash {
+      position: fixed;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 10px;
+      letter-spacing: 5px;
+      padding: 13px 26px;
+      background: rgba(6,6,10,0.92);
+      border: 1px solid rgba(255,255,255,0.18);
+      color: rgba(255,255,255,0.88);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.25s;
+      z-index: 50;
+      white-space: nowrap;
+    }
+    #flash.on { opacity: 1; }
+
+    /* ── Pending indicator ── */
+    #pending-dot {
+      position: fixed;
+      top: 20px; right: 16px;
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: #facc15;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    #pending-dot.on { opacity: 1; }
+  </style>
+</head>
+<body>
+
+<div id="start-screen">
+  <div id="start-title">MIRRORED MARKET</div>
+  <div id="start-sub">感情は市場を映さない</div>
+  <button id="start-btn" onclick="startApp()">ENTER</button>
+</div>
+
+<div id="loading-screen">
+  <div id="loading-text">CALIBRATING PERCEPTION ENGINE</div>
+  <div id="loading-bar-wrap"><div id="loading-bar"></div></div>
+</div>
+
+<div id="app">
+  <div id="header">
+    <div>
+      <div id="ticker-label">MMK / EXP</div>
+      <div id="app-name">MIRRORED MARKET</div>
+    </div>
+    <div id="price-block">
+      <div id="price-value">1000.00</div>
+      <div id="price-change" class="pos">+0.00 (+0.00%)</div>
+    </div>
+  </div>
+
+  <div id="chart-container">
+    <canvas id="chart-canvas"></canvas>
+  </div>
+
+  <div id="footer">
+    <div id="cam-wrap">
+      <video id="video" autoplay muted playsinline></video>
+      <canvas id="face-canvas"></canvas>
+    </div>
+    <div id="expr-info">
+      <div id="expr-label">EXPRESSION DETECTED</div>
+      <div id="expr-name">—</div>
+      <div id="effect-line">INITIALIZING</div>
+    </div>
+  </div>
+</div>
+
+<div id="flash"></div>
+<div id="pending-dot"></div>
+
+<script>
+// ══════════════════════════════════════════
+//  CONSTANTS
+// ══════════════════════════════════════════
+const MODEL_URL  = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
+const CANDLE_MS  = 2500;
+const TICK_MS    = 180;
+const MAX_CAND   = 55;
+const MIN_VOL    = 0.08;
+const MAX_VOL    = 9.0;
+
+// ══════════════════════════════════════════
+//  MARKET STATE
+// ══════════════════════════════════════════
+const mkt = {
+  price:       1000.00,
+  openPrice:   1000.00,
+  volatility:  0.4,
+  trend:       0,
+  candles:     [],
+  cOpen:  1000.00,
+  cHigh:  1000.00,
+  cLow:   1000.00,
+  pending:     [],       // [{time, fn}]
+  lastExpr:    null,
+  cooldownEnd: 0,
+};
+
+// ══════════════════════════════════════════
+//  EXPRESSION EFFECTS
+// ══════════════════════════════════════════
+const FX = {
+  happy: {
+    label:  'OPTIMISM LOGGED',
+    effect: '↓  CORRECTION PENDING  ~4s',
+    color:  '#facc15',
+    fire(m) {
+      m.pending.push({ time: Date.now() + 4000 + rand(800), fn() {
+        m.trend      = -(0.06 + rand(0.04));
+        m.volatility = clamp(m.volatility * 2 + 1, MIN_VOL, MAX_VOL);
+        flash('MARKET CORRECTION');
+        setTimeout(() => { m.trend *= 0.45; }, 3500);
+      }});
+      dotOn();
+    }
+  },
+  angry: {
+    label:  'RAGE ABSORBED',
+    effect: '⊘  VOLATILITY CRUSHED',
+    color:  '#60a5fa',
+    fire(m) {
+      m.volatility = clamp(m.volatility * 0.18, MIN_VOL, MAX_VOL);
+      m.trend      = m.trend * 0.25;
+      flash('CHAOS SUPPRESSED');
+    }
+  },
+  surprised: {
+    label:  'SURPRISE PARSED',
+    effect: '↺  INVERSION IN  ~3.5s',
+    color:  '#c084fc',
+    fire(m) {
+      const t0 = m.trend;
+      m.pending.push({ time: Date.now() + 3500 + rand(600), fn() {
+        m.trend      = -t0 * 1.6 + (Math.random() > 0.5 ? 0.04 : -0.04);
+        m.volatility = clamp(m.volatility * 1.6 + 0.5, MIN_VOL, MAX_VOL);
+        flash('TREND INVERTED');
+      }});
+      dotOn();
+    }
+  },
+  neutral: {
+    label:  'INDIFFERENCE DETECTED',
+    effect: '⚡  TURBULENCE IMMINENT',
+    color:  '#f87171',
+    fire(m) {
+      m.volatility = clamp(m.volatility * 5 + 2.5, MIN_VOL, MAX_VOL);
+      flash('CHAOS UNLEASHED');
+      setTimeout(() => { m.volatility = clamp(m.volatility * 0.55, MIN_VOL, MAX_VOL); }, 4500);
+    }
+  },
+  disgusted: {
+    label:  'DISGUST = ENTRY SIGNAL',
+    effect: '↑  CONTRARIAN BUY',
+    color:  '#34d399',
+    fire(m) {
+      m.trend      = 0.055 + rand(0.03);
+      m.volatility = clamp(m.volatility * 1.9 + 0.6, MIN_VOL, MAX_VOL);
+      flash('CONTRARIAN BUY');
+      setTimeout(() => { m.trend *= 0.4; }, 5000);
+    }
+  },
+  fearful: {
+    label:  'FEAR INDEXED',
+    effect: '↓  SLOW EROSION',
+    color:  '#fb923c',
+    fire(m) {
+      m.trend      = -0.022;
+      m.volatility = clamp(m.volatility + 0.5, MIN_VOL, MAX_VOL);
+    }
+  },
+  sad: {
+    label:  'MELANCHOLY PRICED IN',
+    effect: '↓  DRIFT ACTIVATED',
+    color:  '#94a3b8',
+    fire(m) {
+      m.trend = -0.015;
+    }
+  }
+};
+
+// ══════════════════════════════════════════
+//  HELPERS
+// ══════════════════════════════════════════
+function rand(n)          { return Math.random() * n; }
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+let dotTimer = null;
+function dotOn() {
+  document.getElementById('pending-dot').classList.add('on');
+  clearTimeout(dotTimer);
+  dotTimer = setTimeout(() => {
+    if (mkt.pending.length === 0)
+      document.getElementById('pending-dot').classList.remove('on');
+  }, 200);
+}
+
+let flashTimer = null;
+function flash(txt) {
+  const el = document.getElementById('flash');
+  el.textContent = txt;
+  el.classList.add('on');
+  clearTimeout(flashTimer);
+  flashTimer = setTimeout(() => el.classList.remove('on'), 1600);
+}
+
+// ══════════════════════════════════════════
+//  MARKET SIMULATION
+// ══════════════════════════════════════════
+function boxMuller() {
+  const u1 = Math.random() || 1e-10, u2 = Math.random();
+  return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+}
+
+function tickMarket() {
+  // Fire pending events
+  const now = Date.now();
+  mkt.pending = mkt.pending.filter(ev => {
+    if (ev.time <= now) { ev.fn(); return false; }
+    return true;
+  });
+  if (mkt.pending.length === 0)
+    document.getElementById('pending-dot').classList.remove('on');
+
+  // Price step
+  const vol   = mkt.volatility / 100;
+  const drift = mkt.trend / 100;
+  const delta = mkt.price * (drift + vol * boxMuller());
+  mkt.price   = Math.max(1, mkt.price + delta);
+
+  // Update candle hi/lo
+  if (mkt.price > mkt.cHigh) mkt.cHigh = mkt.price;
+  if (mkt.price < mkt.cLow)  mkt.cLow  = mkt.price;
+
+  // Decay
+  mkt.trend      *= 0.981;
+  mkt.volatility  = Math.max(MIN_VOL, mkt.volatility * 0.9965);
+
+  updatePriceUI();
+}
+
+function closeCandle() {
+  mkt.candles.push({ o: mkt.cOpen, h: mkt.cHigh, l: mkt.cLow, c: mkt.price });
+  if (mkt.candles.length > MAX_CAND) mkt.candles.shift();
+  mkt.cOpen = mkt.cHigh = mkt.cLow = mkt.price;
+}
+
+// ══════════════════════════════════════════
+//  CHART
+// ══════════════════════════════════════════
+const chartEl = document.getElementById('chart-canvas');
+const cctx    = chartEl.getContext('2d');
+
+function resizeChart() {
+  chartEl.width  = chartEl.offsetWidth  * devicePixelRatio;
+  chartEl.height = chartEl.offsetHeight * devicePixelRatio;
+}
+
+function drawChart() {
+  const W = chartEl.width, H = chartEl.height;
+  const dpr = devicePixelRatio;
+  cctx.clearRect(0, 0, W, H);
+
+  const live = { o: mkt.cOpen, h: mkt.cHigh, l: mkt.cLow, c: mkt.price };
+  const all  = [...mkt.candles, live];
+  if (all.length < 2) return;
+  const vis  = all.slice(-42);
+
+  // Price range
+  let lo = Infinity, hi = -Infinity;
+  vis.forEach(c => { if (c.l < lo) lo = c.l; if (c.h > hi) hi = c.h; });
+  const rng = hi - lo || 1;
+  const pad = rng * 0.18;
+  lo -= pad; hi += pad;
+  const toY = p => H - ((p - lo) / (hi - lo)) * H;
+
+  // Grid
+  const GRID = 4;
+  cctx.lineWidth = 1;
+  for (let i = 0; i <= GRID; i++) {
+    const y = H * (i / GRID);
+    cctx.strokeStyle = 'rgba(255,255,255,0.035)';
+    cctx.beginPath(); cctx.moveTo(0, y); cctx.lineTo(W, y); cctx.stroke();
+    const pv = hi - (hi - lo) * (i / GRID);
+    cctx.fillStyle = 'rgba(255,255,255,0.12)';
+    cctx.font = `${8 * dpr}px "SF Mono",Menlo,monospace`;
+    cctx.textAlign = 'right';
+    cctx.fillText(pv.toFixed(2), W - 5, y - 4);
+  }
+
+  // Candles
+  const PAD_R   = 32 * dpr;
+  const usableW = W - PAD_R;
+  const spacing = usableW / vis.length;
+  const candleW = Math.max(2 * dpr, spacing * 0.62);
+
+  vis.forEach((c, i) => {
+    const x    = (i + 0.5) * spacing;
+    const up   = c.c >= c.o;
+    const col  = up ? '#22c55e' : '#ef4444';
+    const colD = up ? 'rgba(34,197,94,0.45)' : 'rgba(239,68,68,0.45)';
+
+    // Wick
+    cctx.strokeStyle = colD;
+    cctx.lineWidth   = 1 * dpr;
+    cctx.beginPath();
+    cctx.moveTo(x, toY(c.h));
+    cctx.lineTo(x, toY(c.l));
+    cctx.stroke();
+
+    // Body
+    const bt = toY(Math.max(c.o, c.c));
+    const bb = toY(Math.min(c.o, c.c));
+    const bh = Math.max(1.5 * dpr, bb - bt);
+    cctx.fillStyle = col;
+    cctx.fillRect(x - candleW / 2, bt, candleW, bh);
+  });
+
+  // Current price dashed line
+  const cy = toY(mkt.price);
+  cctx.strokeStyle = 'rgba(255,255,255,0.2)';
+  cctx.lineWidth   = 1;
+  cctx.setLineDash([4 * dpr, 5 * dpr]);
+  cctx.beginPath(); cctx.moveTo(0, cy); cctx.lineTo(W - PAD_R, cy); cctx.stroke();
+  cctx.setLineDash([]);
+}
+
+// ══════════════════════════════════════════
+//  UI
+// ══════════════════════════════════════════
+function updatePriceUI() {
+  const chg  = mkt.price - mkt.openPrice;
+  const pct  = (chg / mkt.openPrice) * 100;
+  const sign = chg >= 0 ? '+' : '';
+  document.getElementById('price-value').textContent = mkt.price.toFixed(2);
+  const el = document.getElementById('price-change');
+  el.textContent = `${sign}${chg.toFixed(2)} (${sign}${pct.toFixed(2)}%)`;
+  el.className   = chg >= 0 ? 'pos' : 'neg';
+}
+
+function updateExprUI(name, info) {
+  document.getElementById('expr-name').textContent  = info.label;
+  document.getElementById('expr-name').style.color  = info.color;
+  document.getElementById('effect-line').textContent = info.effect;
+}
+
+// ══════════════════════════════════════════
+//  FACE DETECTION
+// ══════════════════════════════════════════
+const videoEl  = document.getElementById('video');
+const faceEl   = document.getElementById('face-canvas');
+const fctx     = faceEl.getContext('2d');
+let detecting  = false;
+
+async function detectLoop() {
+  if (!detecting) return;
+
+  try {
+    const dets = await faceapi
+      .detectAllFaces(videoEl, new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.4 }))
+      .withFaceExpressions();
+
+    fctx.clearRect(0, 0, faceEl.width, faceEl.height);
+
+    if (dets.length > 0) {
+      const d = dets[0];
+      const sx = faceEl.width  / videoEl.videoWidth;
+      const sy = faceEl.height / videoEl.videoHeight;
+      const b  = d.detection.box;
+      const mx = faceEl.width - (b.x + b.width) * sx; // mirror
+
+      fctx.strokeStyle = 'rgba(255,255,255,0.45)';
+      fctx.lineWidth   = 1;
+      fctx.strokeRect(mx, b.y * sy, b.width * sx, b.height * sy);
+
+      const expr = d.expressions;
+      const [top, score] = Object.entries(expr).reduce((a, b) => a[1] > b[1] ? a : b);
+
+      if (FX[top]) updateExprUI(top, FX[top]);
+
+      const now = Date.now();
+      if (score > 0.44 && FX[top] && now > mkt.cooldownEnd && mkt.lastExpr !== top) {
+        mkt.lastExpr    = top;
+        mkt.cooldownEnd = now + 2200;
+        FX[top].fire(mkt);
+      }
+    } else {
+      fctx.clearRect(0, 0, faceEl.width, faceEl.height);
+      document.getElementById('expr-name').textContent  = '—';
+      document.getElementById('expr-name').style.color  = 'rgba(255,255,255,0.5)';
+      document.getElementById('effect-line').textContent = 'NO SUBJECT DETECTED';
+      mkt.lastExpr = null;
+    }
+  } catch (_) {}
+
+  setTimeout(detectLoop, 480);
+}
+
+// ══════════════════════════════════════════
+//  BOOT
+// ══════════════════════════════════════════
+async function startApp() {
+  document.getElementById('start-screen').style.display = 'none';
+  const ls  = document.getElementById('loading-screen');
+  const bar = document.getElementById('loading-bar');
+  ls.style.display = 'flex';
+
+  try {
+    bar.style.width = '30%';
+    await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+    bar.style.width = '65%';
+    await faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL);
+    bar.style.width = '85%';
+
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user', width: { ideal: 320 }, height: { ideal: 240 } }
+    });
+    videoEl.srcObject = stream;
+    await new Promise(r => { videoEl.onloadedmetadata = r; });
+
+    bar.style.width = '100%';
+    await new Promise(r => setTimeout(r, 300));
+
+    faceEl.width  = 64;
+    faceEl.height = 48;
+
+    ls.style.display = 'none';
+    const app = document.getElementById('app');
+    app.style.display = 'flex';
+
+    resizeChart();
+
+    mkt.cOpen = mkt.cHigh = mkt.cLow = mkt.price;
+
+    setInterval(tickMarket,  TICK_MS);
+    setInterval(closeCandle, CANDLE_MS);
+
+    detecting = true;
+    detectLoop();
+
+    requestAnimationFrame(function loop() { drawChart(); requestAnimationFrame(loop); });
+
+  } catch (err) {
+    document.getElementById('loading-text').textContent = 'ERROR: ' + err.message;
+  }
+}
+
+window.addEventListener('resize', resizeChart);
+</script>
+</body>
+</html>
