@@ -198,6 +198,52 @@
     }
     #flash.on { opacity: 1; }
 
+    /* ── Trade strip ── */
+    #trade-strip {
+      display: flex;
+      align-items: center;
+      padding: 10px 16px;
+      gap: 12px;
+      flex-shrink: 0;
+      border-top: 1px solid rgba(255,255,255,0.05);
+    }
+    .trade-btn {
+      background: none;
+      font-family: inherit;
+      font-size: 9px;
+      letter-spacing: 3px;
+      padding: 11px 0;
+      cursor: pointer;
+      border: 1px solid;
+      width: 72px;
+      transition: opacity 0.2s, background 0.15s;
+      flex-shrink: 0;
+    }
+    #btn-buy  { color: #22c55e; border-color: rgba(34,197,94,0.4); }
+    #btn-buy:active  { background: rgba(34,197,94,0.12); }
+    #btn-sell { color: #ef4444; border-color: rgba(239,68,68,0.4); }
+    #btn-sell:active { background: rgba(239,68,68,0.12); }
+    .trade-btn.dim { opacity: 0.18; }
+    #pos-block { flex: 1; text-align: center; }
+    #pos-side {
+      font-size: 9px;
+      letter-spacing: 2px;
+      color: rgba(255,255,255,0.4);
+    }
+    #pos-pnl {
+      font-size: 16px;
+      font-weight: 200;
+      letter-spacing: 1px;
+      font-variant-numeric: tabular-nums;
+      margin-top: 3px;
+    }
+    #pos-realized {
+      font-size: 7px;
+      letter-spacing: 2px;
+      color: rgba(255,255,255,0.18);
+      margin-top: 4px;
+    }
+
     /* ── Pending indicator ── */
     #pending-dot {
       position: fixed;
@@ -238,6 +284,16 @@
 
   <div id="chart-container">
     <canvas id="chart-canvas"></canvas>
+  </div>
+
+  <div id="trade-strip">
+    <button id="btn-buy"  class="trade-btn" onclick="onBuy()">BUY</button>
+    <div id="pos-block">
+      <div id="pos-side">NO POSITION</div>
+      <div id="pos-pnl">—</div>
+      <div id="pos-realized">REALIZED  +0.00</div>
+    </div>
+    <button id="btn-sell" class="trade-btn" onclick="onSell()">SELL</button>
   </div>
 
   <div id="footer">
@@ -282,6 +338,16 @@ const mkt = {
   pending:     [],       // [{time, fn}]
   lastExpr:    null,
   cooldownEnd: 0,
+};
+
+// ══════════════════════════════════════════
+//  TRADE STATE
+// ══════════════════════════════════════════
+const trade = {
+  side:        null,   // 'long' | 'short' | null
+  entryPrice:  0,
+  size:        100,
+  realizedPnl: 0,
 };
 
 // ══════════════════════════════════════════
@@ -424,6 +490,7 @@ function tickMarket() {
   mkt.volatility  = Math.max(MIN_VOL, mkt.volatility * 0.9965);
 
   updatePriceUI();
+  updateTradeUI();
 }
 
 function closeCandle() {
@@ -503,6 +570,17 @@ function drawChart() {
     cctx.fillRect(x - candleW / 2, bt, candleW, bh);
   });
 
+  // Entry price line (when in position)
+  if (trade.side) {
+    const ey = toY(trade.entryPrice);
+    cctx.strokeStyle = trade.side === 'long'
+      ? 'rgba(34,197,94,0.55)' : 'rgba(239,68,68,0.55)';
+    cctx.lineWidth = 1;
+    cctx.setLineDash([3 * dpr, 4 * dpr]);
+    cctx.beginPath(); cctx.moveTo(0, ey); cctx.lineTo(W - PAD_R, ey); cctx.stroke();
+    cctx.setLineDash([]);
+  }
+
   // Current price dashed line
   const cy = toY(mkt.price);
   cctx.strokeStyle = 'rgba(255,255,255,0.2)';
@@ -523,6 +601,59 @@ function updatePriceUI() {
   const el = document.getElementById('price-change');
   el.textContent = `${sign}${chg.toFixed(2)} (${sign}${pct.toFixed(2)}%)`;
   el.className   = chg >= 0 ? 'pos' : 'neg';
+}
+
+function onBuy() {
+  if (trade.side === 'long') return;
+  if (trade.side === 'short') {
+    const pnl = (trade.entryPrice - mkt.price) * trade.size;
+    trade.realizedPnl += pnl;
+    flash(pnl >= 0 ? `CLOSED  +${pnl.toFixed(2)}` : `CLOSED  ${pnl.toFixed(2)}`);
+    trade.side = null;
+  }
+  trade.side = 'long';
+  trade.entryPrice = mkt.price;
+}
+
+function onSell() {
+  if (trade.side === 'short') return;
+  if (trade.side === 'long') {
+    const pnl = (mkt.price - trade.entryPrice) * trade.size;
+    trade.realizedPnl += pnl;
+    flash(pnl >= 0 ? `CLOSED  +${pnl.toFixed(2)}` : `CLOSED  ${pnl.toFixed(2)}`);
+    trade.side = null;
+  }
+  trade.side = 'short';
+  trade.entryPrice = mkt.price;
+}
+
+function updateTradeUI() {
+  const buyBtn = document.getElementById('btn-buy');
+  const sellBtn = document.getElementById('btn-sell');
+  const posEl  = document.getElementById('pos-side');
+  const pnlEl  = document.getElementById('pos-pnl');
+  const realEl = document.getElementById('pos-realized');
+
+  const rs = trade.realizedPnl >= 0 ? '+' : '';
+  realEl.textContent = `REALIZED  ${rs}${trade.realizedPnl.toFixed(2)}`;
+
+  if (trade.side === null) {
+    posEl.textContent = 'NO POSITION';
+    pnlEl.textContent = '—';
+    pnlEl.className   = '';
+    buyBtn.classList.remove('dim');
+    sellBtn.classList.remove('dim');
+  } else {
+    const unreal = trade.side === 'long'
+      ? (mkt.price - trade.entryPrice) * trade.size
+      : (trade.entryPrice - mkt.price) * trade.size;
+    const s = unreal >= 0 ? '+' : '';
+    posEl.textContent = `${trade.side.toUpperCase()}  @${trade.entryPrice.toFixed(2)}`;
+    pnlEl.textContent = `${s}${unreal.toFixed(2)}`;
+    pnlEl.className   = unreal >= 0 ? 'pos' : 'neg';
+    buyBtn.classList.toggle('dim',  trade.side === 'long');
+    sellBtn.classList.toggle('dim', trade.side === 'short');
+  }
 }
 
 function updateExprUI(name, info) {
