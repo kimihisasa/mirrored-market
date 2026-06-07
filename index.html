@@ -223,14 +223,18 @@
     #btn-buy:active  { background: rgba(34,197,94,0.12); }
     #btn-sell { color: #ef4444; border-color: rgba(239,68,68,0.4); }
     #btn-sell:active { background: rgba(239,68,68,0.12); }
-    .trade-btn.dim    { opacity: 0.18; }
-    #btn-buy.active  { background: rgba(34,197,94,0.18); border-color: #22c55e; }
-    #btn-sell.active { background: rgba(239,68,68,0.18); border-color: #ef4444; }
+    .trade-btn:disabled { opacity: 0.12; cursor: default; }
     #pos-block { flex: 1; text-align: center; }
     #pos-side {
-      font-size: 9px;
+      font-size: 13px;
+      letter-spacing: 4px;
+      font-weight: 300;
+    }
+    #pos-entry {
+      font-size: 8px;
       letter-spacing: 2px;
-      color: rgba(255,255,255,0.4);
+      color: rgba(255,255,255,0.3);
+      margin-top: 3px;
     }
     #pos-pnl {
       font-size: 16px;
@@ -323,7 +327,8 @@
   <div id="trade-strip">
     <button id="btn-buy"  class="trade-btn" onclick="onBuy()">BUY</button>
     <div id="pos-block">
-      <div id="pos-side">NO POSITION</div>
+      <div id="pos-side">—</div>
+      <div id="pos-entry"></div>
       <div id="pos-pnl">—</div>
       <div id="pos-realized">REALIZED  +0.00</div>
     </div>
@@ -636,6 +641,7 @@ function onBuy() {
     trade.realizedPnl += pnl;
     flash(pnl >= 0 ? `CLOSED  +${pnl.toFixed(2)}` : `CLOSED  ${pnl.toFixed(2)}`);
     trade.side = null;
+    return;
   }
   trade.side = 'long';
   trade.entryPrice = mkt.price;
@@ -648,6 +654,7 @@ function onSell() {
     trade.realizedPnl += pnl;
     flash(pnl >= 0 ? `CLOSED  +${pnl.toFixed(2)}` : `CLOSED  ${pnl.toFixed(2)}`);
     trade.side = null;
+    return;
   }
   trade.side = 'short';
   trade.entryPrice = mkt.price;
@@ -677,23 +684,25 @@ function updateTradeUI() {
   totalEl.textContent = `${ts}${total.toFixed(2)}`;
   totalEl.className   = total >= 0 ? 'pos' : 'neg';
 
+  const entryEl = document.getElementById('pos-entry');
+
   if (trade.side === null) {
-    posEl.textContent  = 'NO POSITION';
-    posEl.style.color  = 'rgba(255,255,255,0.4)';
-    pnlEl.textContent  = '—';
-    pnlEl.className    = '';
-    buyBtn.classList.remove('dim');   buyBtn.classList.remove('active');
-    sellBtn.classList.remove('dim');  sellBtn.classList.remove('active');
+    posEl.textContent   = '—';
+    posEl.style.color   = 'rgba(255,255,255,0.25)';
+    entryEl.textContent = '';
+    pnlEl.textContent   = '—';
+    pnlEl.className     = '';
+    buyBtn.disabled     = false;
+    sellBtn.disabled    = false;
   } else {
     const s = unreal >= 0 ? '+' : '';
-    posEl.textContent  = `${trade.side.toUpperCase()}  @${trade.entryPrice.toFixed(2)}`;
-    posEl.style.color  = trade.side === 'long' ? '#4ade80' : '#f87171';
-    pnlEl.textContent  = `${s}${unreal.toFixed(2)}`;
-    pnlEl.className    = unreal >= 0 ? 'pos' : 'neg';
-    buyBtn.classList.toggle('active', trade.side === 'long');
-    buyBtn.classList.toggle('dim',    trade.side === 'short');
-    sellBtn.classList.toggle('active', trade.side === 'short');
-    sellBtn.classList.toggle('dim',    trade.side === 'long');
+    posEl.textContent   = trade.side === 'long' ? 'LONG' : 'SHORT';
+    posEl.style.color   = trade.side === 'long' ? '#4ade80' : '#f87171';
+    entryEl.textContent = `ENTRY  @${trade.entryPrice.toFixed(2)}`;
+    pnlEl.textContent   = `${s}${unreal.toFixed(2)}`;
+    pnlEl.className     = unreal >= 0 ? 'pos' : 'neg';
+    buyBtn.disabled     = trade.side === 'long';
+    sellBtn.disabled    = trade.side === 'short';
   }
 }
 
