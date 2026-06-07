@@ -687,7 +687,7 @@ function updateTradeUI() {
   const entryEl = document.getElementById('pos-entry');
 
   if (trade.side === null) {
-    posEl.textContent   = '—';
+    posEl.textContent   = 'NEUTRAL';
     posEl.style.color   = 'rgba(255,255,255,0.25)';
     entryEl.textContent = '';
     pnlEl.textContent   = '—';
@@ -707,7 +707,7 @@ function updateTradeUI() {
 }
 
 function updateExprUI(name, info) {
-  document.getElementById('expr-name').textContent  = info.label;
+  document.getElementById('expr-name').textContent  = name.toUpperCase();
   document.getElementById('expr-name').style.color  = info.color;
   document.getElementById('effect-line').textContent = info.effect;
 }
