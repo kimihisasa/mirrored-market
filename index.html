@@ -143,20 +143,20 @@
     }
     #cam-wrap {
       position: relative;
-      width: 64px;
-      height: 48px;
+      width: 108px;
+      height: 81px;
       flex-shrink: 0;
     }
     #video {
-      width: 64px; height: 48px;
+      width: 108px; height: 81px;
       object-fit: cover;
-      opacity: 0.55;
+      opacity: 0.6;
       transform: scaleX(-1);
       display: block;
     }
     #face-canvas {
       position: absolute; inset: 0;
-      width: 64px; height: 48px;
+      width: 108px; height: 81px;
     }
 
     #expr-info { flex: 1; min-width: 0; }
@@ -223,7 +223,9 @@
     #btn-buy:active  { background: rgba(34,197,94,0.12); }
     #btn-sell { color: #ef4444; border-color: rgba(239,68,68,0.4); }
     #btn-sell:active { background: rgba(239,68,68,0.12); }
-    .trade-btn.dim { opacity: 0.18; }
+    .trade-btn.dim    { opacity: 0.18; }
+    #btn-buy.active  { background: rgba(34,197,94,0.18); border-color: #22c55e; }
+    #btn-sell.active { background: rgba(239,68,68,0.18); border-color: #ef4444; }
     #pos-block { flex: 1; text-align: center; }
     #pos-side {
       font-size: 9px;
@@ -676,18 +678,22 @@ function updateTradeUI() {
   totalEl.className   = total >= 0 ? 'pos' : 'neg';
 
   if (trade.side === null) {
-    posEl.textContent = 'NO POSITION';
-    pnlEl.textContent = '—';
-    pnlEl.className   = '';
-    buyBtn.classList.remove('dim');
-    sellBtn.classList.remove('dim');
+    posEl.textContent  = 'NO POSITION';
+    posEl.style.color  = 'rgba(255,255,255,0.4)';
+    pnlEl.textContent  = '—';
+    pnlEl.className    = '';
+    buyBtn.classList.remove('dim');   buyBtn.classList.remove('active');
+    sellBtn.classList.remove('dim');  sellBtn.classList.remove('active');
   } else {
     const s = unreal >= 0 ? '+' : '';
-    posEl.textContent = `${trade.side.toUpperCase()}  @${trade.entryPrice.toFixed(2)}`;
-    pnlEl.textContent = `${s}${unreal.toFixed(2)}`;
-    pnlEl.className   = unreal >= 0 ? 'pos' : 'neg';
-    buyBtn.classList.toggle('dim',  trade.side === 'long');
-    sellBtn.classList.toggle('dim', trade.side === 'short');
+    posEl.textContent  = `${trade.side.toUpperCase()}  @${trade.entryPrice.toFixed(2)}`;
+    posEl.style.color  = trade.side === 'long' ? '#4ade80' : '#f87171';
+    pnlEl.textContent  = `${s}${unreal.toFixed(2)}`;
+    pnlEl.className    = unreal >= 0 ? 'pos' : 'neg';
+    buyBtn.classList.toggle('active', trade.side === 'long');
+    buyBtn.classList.toggle('dim',    trade.side === 'short');
+    sellBtn.classList.toggle('active', trade.side === 'short');
+    sellBtn.classList.toggle('dim',    trade.side === 'long');
   }
 }
 
@@ -774,8 +780,8 @@ async function startApp() {
     bar.style.width = '100%';
     await new Promise(r => setTimeout(r, 300));
 
-    faceEl.width  = 64;
-    faceEl.height = 48;
+    faceEl.width  = 108;
+    faceEl.height = 81;
 
     ls.style.display = 'none';
     const app = document.getElementById('app');
